@@ -39,7 +39,7 @@ app.post("/lookup", async (req, res, next) => {
     const { data: customer, error: custErr } = await supabase
       .from("customers")
       .select("*")
-      .eq("phone_number", phone)
+      .eq("phone", phone)
       .single();
     if (custErr || !customer) {
       return res
