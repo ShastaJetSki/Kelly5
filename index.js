@@ -5,45 +5,64 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 
+// ─── SUPABASE CLIENT SETUP ─────────────────────────────────────────────────────
+import { createClient } from "@supabase/supabase-js";
+
 dotenv.config();
 
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
+
+// ─── EXPRESS APP SETUP ─────────────────────────────────────────────────────────
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── MIDDLEWARE ────────────────────────────────────────────────────────────────
-app.use(helmet());              // secure headers
-app.use(cors());                // CORS enabled for all origins (lock down later if needed)
-app.use(express.json());        // parse JSON body
-app.use(morgan("combined"));    // HTTP request logging
-
-// ─── SUPABASE SETUP (TO DO) ────────────────────────────────────────────────────
-// import { createClient } from "@supabase/supabase-js";
-// const supabase = createClient(
-//   process.env.SUPABASE_URL,            // set in Render Dashboard → Environment
-//   process.env.SUPABASE_SERVICE_KEY     // or anon key, whichever you prefer
-// );
+app.use(helmet());           // secure headers
+app.use(cors());             // enable CORS
+app.use(express.json());     // parse JSON bodies
+app.use(morgan("combined")); // request logging
 
 // ─── HEALTHCHECK / TEST ENDPOINT ──────────────────────────────────────────────
 app.get("/test", (req, res) => {
   res.json({ message: "Server is working" });
 });
 
-// ─── YOUR API ENDPOINTS (TO DO) ───────────────────────────────────────────────
-// Example: fetch customer by phone
-// app.get("/customer/:phone", async (req, res, next) => {
-//   try {
-//     const { phone } = req.params;
-//     // const { data, error } = await supabase
-//     //   .from("customers")
-//     //   .select("*")
-//     //   .eq("phone_number", phone)
-//     //   .single();
-//     // if (error) throw error;
-//     // res.json({ customer: data });
-//   } catch (err) {
-//     next(err);
-//   }
-// });
+// ─── LOOKUP ENDPOINT ───────────────────────────────────────────────────────────
+app.post("/lookup", async (req, res, next) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: "Missing phone" });
+
+    // 1) Fetch customer by phone_number
+    const { data: customer, error: custErr } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("phone_number", phone)
+      .single();
+
+    if (custErr || !customer) {
+      return res
+        .status(404)
+        .json({ success: false, error: "Customer not found" });
+    }
+
+    // 2) Fetch all their watercraft
+    const { data: watercraft, error: craftErr } = await supabase
+      .from("watercraft")
+      .select("*")
+      .eq("customer_id", customer.id);
+
+    if (craftErr) throw craftErr;
+
+    // 3) Return combined result
+    res.json({ success: true, customer, watercraft });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ─── GLOBAL ERROR HANDLER ──────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
