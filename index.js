@@ -26,6 +26,7 @@ const supabase = createClient(
 
 // ─── HEALTHCHECK / TEST ENDPOINT ──────────────────────────────────────────────
 app.get("/test", (req, res) => {
+  console.log("[TEST] GET /test called");
   res.json({ message: "Server is working" });
 });
 
@@ -33,7 +34,12 @@ app.get("/test", (req, res) => {
 app.post("/lookup", async (req, res, next) => {
   try {
     const { phone } = req.body;
-    if (!phone) return res.status(400).json({ error: "Missing phone" });
+    console.log("[LOOKUP] incoming phone:", phone);
+
+    if (!phone) {
+      console.log("[LOOKUP] missing phone");
+      return res.status(400).json({ error: "Missing phone" });
+    }
 
     // 1) Fetch the customer record by phone
     const { data: customer, error: custErr } = await supabase
@@ -41,7 +47,10 @@ app.post("/lookup", async (req, res, next) => {
       .select("*")
       .eq("phone", phone)
       .single();
+    console.log("[LOOKUP] supabase customer result:", { customer, custErr });
+
     if (custErr || !customer) {
+      console.log("[LOOKUP] customer not found for", phone);
       return res
         .status(404)
         .json({ success: false, error: "Customer not found" });
@@ -52,11 +61,15 @@ app.post("/lookup", async (req, res, next) => {
       .from("watercraft")
       .select("*")
       .eq("customer_id", customer.id);
+    console.log("[LOOKUP] supabase watercraft result:", { watercraft, craftErr });
+
     if (craftErr) throw craftErr;
 
+    console.log("[LOOKUP] returning success for", phone);
     // 3) Return combined result
     res.json({ success: true, customer, watercraft });
   } catch (err) {
+    console.error("[LOOKUP] error:", err);
     next(err);
   }
 });
