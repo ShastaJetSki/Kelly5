@@ -5,25 +5,24 @@ import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
 
-// ─── SUPABASE CLIENT SETUP ─────────────────────────────────────────────────────
 import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
-
-// ─── EXPRESS APP SETUP ─────────────────────────────────────────────────────────
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ─── MIDDLEWARE ────────────────────────────────────────────────────────────────
 app.use(helmet());           // secure headers
-app.use(cors());             // enable CORS
+app.use(cors());             // enable CORS for all origins
 app.use(express.json());     // parse JSON bodies
-app.use(morgan("combined")); // request logging
+app.use(morgan("combined")); // HTTP request logging
+
+// ─── SUPABASE CLIENT SETUP ─────────────────────────────────────────────────────
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_KEY
+);
 
 // ─── HEALTHCHECK / TEST ENDPOINT ──────────────────────────────────────────────
 app.get("/test", (req, res) => {
@@ -36,25 +35,23 @@ app.post("/lookup", async (req, res, next) => {
     const { phone } = req.body;
     if (!phone) return res.status(400).json({ error: "Missing phone" });
 
-    // 1) Fetch customer by phone_number
+    // 1) Fetch the customer record by phone
     const { data: customer, error: custErr } = await supabase
       .from("customers")
       .select("*")
       .eq("phone_number", phone)
       .single();
-
     if (custErr || !customer) {
       return res
         .status(404)
         .json({ success: false, error: "Customer not found" });
     }
 
-    // 2) Fetch all their watercraft
+    // 2) Fetch all watercraft for that customer
     const { data: watercraft, error: craftErr } = await supabase
       .from("watercraft")
       .select("*")
       .eq("customer_id", customer.id);
-
     if (craftErr) throw craftErr;
 
     // 3) Return combined result
