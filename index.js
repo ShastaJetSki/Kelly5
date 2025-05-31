@@ -33,8 +33,12 @@ app.get("/test", (req, res) => {
 // ─── LOOKUP ENDPOINT ───────────────────────────────────────────────────────────
 app.post("/lookup", async (req, res, next) => {
   try {
+    // ─── DEBUG LOGS (added) ────────────────────────────────────────────────
+    console.log("[LOOKUP] raw request body:", JSON.stringify(req.body));
+    console.log("[LOOKUP] incoming phone field:", JSON.stringify(req.body.phone));
+    // ──────────────────────────────────────────────────────────────────────────
+
     const { phone } = req.body;
-    console.log("[LOOKUP] incoming phone:", phone);
 
     if (!phone) {
       console.log("[LOOKUP] missing phone");
